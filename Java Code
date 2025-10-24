@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Interactive Sitemap — Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root{
+    --bg: linear-gradient(180deg,#fff8fb 0,#f0fbff 100%);
+    --card:#ffffff;
+    --muted:#6b7280;
+    --accent-1:#FF6B6B;
+    --accent-2:#6B8EFF;
+    --accent-3:#6BE2A8;
+    --accent-4:#FFD36B;
+    --shadow: 0 8px 28px rgba(16,24,40,0.06);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--bg);color:#0f172a}
+  .app{max-width:1180px;margin:28px auto;padding:18px;display:grid;grid-template-columns:250px 1fr;gap:18px}
+  header.brand{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(90deg,var(--accent-2),#9B8BFF);color:#fff;padding:16px;border-radius:12px;box-shadow:var(--shadow)}
+  .brand-left{display:flex;gap:12px;align-items:center}
+  .logo{width:52px;height:52px;border-radius:10px;background:linear-gradient(135deg,var(--accent-3),#3EE0C3);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:20px}
+  .brand h1{margin:0;font-size:18px}
+  .brand p{margin:0;font-size:13px;opacity:0.9}
+  nav.side{background:var(--card);padding:14px;border-radius:12px;box-shadow:var(--shadow);height:calc(100vh - 160px);overflow:auto}
+  .nav-list{display:flex;flex-direction:column;gap:8px}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+  .nav-item:hover{background:linear-gradient(90deg,#f6fbff,#fff);border-color:rgba(11,79,108,0.05)}
+  .nav-item.active{background:linear-gradient(90deg,#fff8ef,#fff);box-shadow:inset 0 1px 0 rgba(255,255,255,0.6);border-color:rgba(11,79,108,0.06)}
+  main.content{display:flex;flex-direction:column;gap:16px}
+  .row{display:grid;grid-template-columns:1fr 340px;gap:16px}
+  .card{background:var(--card);padding:14px;border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
+  .chart-wrap{height:420px;padding:8px;border-radius:10px;background:linear-gradient(180deg,#fff,#f8fcff)}
+  canvas{width:100% !important;height:100% !important;display:block}
+  .info{position:sticky;top:24px}
+  .info h3{margin:0 0 8px 0;color:#2b6cb0}
+  .controls{display:flex;gap:8px;align-items:center}
+  .search{flex:1;padding:10px;border-radius:10px;border:1px solid rgba(15,23,42,0.06)}
+  .btn{background:var(--accent-2);color:#fff;padding:10px 12px;border-radius:10px;border:0;cursor:pointer}
+  .products{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+  .product{border-radius:10px;padding:10px;background:linear-gradient(180deg,#fff,#fffaf0);border:1px solid rgba(15,23,42,0.03)}
+  .p-img{height:120px;background:#f3f7fb;border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  .p-img img{width:100%;height:100%;object-fit:cover}
+  .p-title{font-weight:600;margin-top:8px}
+  form.contact{display:flex;flex-direction:column;gap:8px}
+  input,textarea,select{padding:10px;border-radius:8px;border:1px solid rgba(15,23,42,0.06);font-size:14px}
+  .error{color:#b91c1c;font-size:13px}
+  footer{grid-column:1/-1;text-align:center;color:var(--muted);padding:12px;margin-top:6px}
+  .toast {position:fixed;right:18px;bottom:18px;background:#111827;color:#fff;padding:10px 14px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.35);display:none;z-index:9999}
+
+  /* added: small action buttons and cart badge */
+  .product-actions{display:flex;gap:8px;margin-top:10px}
+  .small-btn{background:transparent;border:1px solid rgba(15,23,42,0.06);padding:6px 8px;border-radius:8px;cursor:pointer;font-size:13px}
+  .small-btn.primary{background:var(--accent-2);color:#fff;border:0}
+  .cart-badge{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:14px;background:#fff;color:var(--accent-2);font-weight:700;border:2px solid rgba(255,255,255,0.2);margin-left:6px}
+
+  @media (max-width:1000px){
+    .app{grid-template-columns:1fr;padding:12px}
+    .row{grid-template-columns:1fr}
+    nav.side{height:auto;order:2}
+    header.brand{border-radius:10px}
+    .info{position:static}
+  }
+</style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="brand">
+      <div class="brand-left">
+        <div class="logo">S</div>
+        <div>
+          <h1>Interactive Sitemap</h1>
+          <p>Colorful, responsive and robust demo</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <input id="top-search" class="search" type="search" placeholder="Search products..." aria-label="Search products" style="width:260px">
+        <button class="btn" id="open-contact">Contact</button>
+        <div id="cart" style="display:flex;align-items:center;margin-left:8px">
+          <button class="btn" id="view-cart" title="View cart">Cart</button>
+          <div id="cart-count" class="cart-badge" aria-live="polite">0</div>
+        </div>
+      </div>
+    </header>
+
+    <nav class="side" aria-label="Primary">
+      <div style="font-weight:600;margin-bottom:8px">Navigation</div>
+      <div class="nav-list" id="navList">
+        <div class="nav-item active" data-page="home">Home</div>
+        <div class="nav-item" data-page="navigation">Navigation</div>
+        <div class="nav-item" data-page="about">About</div>
+        <div class="nav-item" data-page="contact">Contact</div>
+      </div>
+      <div style="margin-top:18px">
+        <div style="font-weight:600;margin-bottom:8px">Quick Actions</div>
+        <button class="btn" id="load-featured">Load Featured</button>
+      </div>
+    </nav>
+
+    <main class="content" id="contentArea">
+      <!-- Home -->
+      <section class="row card" data-page="home">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <strong>Website Structure Overview</strong>
+            <small style="color:var(--muted)">Click bars to drill-down</small>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="sitemapChart" aria-label="Sitemap chart"></canvas>
+          </div>
+
+          <div style="margin-top:12px" class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <strong>Products</strong>
+              <div class="controls">
+                <input id="product-search" class="search" placeholder="Filter products..." aria-label="Filter products" style="width:220px">
+                <button id="load-more-btn" class="btn">Load More</button>
+              </div>
+            </div>
+            <div id="product-list" class="products"></div>
+            <div id="dynamic-products" class="products" style="display:none;margin-top:12px"></div>
+          </div>
+        </div>
+
+        <aside class="card info">
+          <h3 id="infoTitle">Welcome</h3>
+          <div id="infoContent">Select a section in the chart or browse Navigation to see details.</div>
+        </aside>
+      </section>
+
+      <!-- Navigation page -->
+      <section class="row card" data-page="navigation" style="display:none">
+        <div>
+          <div style="margin-bottom:8px"><strong>Navigation Tree</strong></div>
+          <div id="nav-tree" style="display:flex;flex-direction:column;gap:10px"></div>
+        </div>
+        <aside class="card info">
+          <h3 id="navInfoTitle">Select a node</h3>
+          <div id="navInfoContent">Click a node to expand and show details.</div>
+        </aside>
+      </section>
+
+      <!-- About -->
+      <section class="row card" data-page="about" style="display:none">
+        <div>
+          <h2>About Us</h2>
+          <p>We build clean interactive demos to showcase UX patterns like sitemaps, product grids and contact flows.</p>
+          <h3 style="margin-top:12px">Team</h3>
+          <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap">
+            <div style="width:140px" class="card">
+              <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=600&q=60" alt="Alex" style="width:100%;height:110px;object-fit:cover;border-radius:8px">
+              <div style="font-weight:600;margin-top:8px">Alex</div><div style="color:var(--muted)">Product</div>
+            </div>
+            <div style="width:140px" class="card">
+              <img src="https://images.unsplash.com/photo-1545996124-1e7c4f2ae7d7?w=600&q=60" alt="Jordan" style="width:100%;height:110px;object-fit:cover;border-radius:8px">
+              <div style="font-weight:600;margin-top:8px">Jordan</div><div style="color:var(--muted)">Design</div>
+            </div>
+            <div style="width:140px" class="card">
+              <img src="https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?w=600&q=60" alt="Casey" style="width:100%;height:110px;object-fit:cover;border-radius:8px">
+              <div style="font-weight:600;margin-top:8px">Casey</div><div style="color:var(--muted)">Engineering</div>
+            </div>
+          </div>
+        </div>
+        <aside class="card info">
+          <h3>Contact</h3>
+          <div>Use the contact form to send a message (client-side demo).</div>
+        </aside>
+      </section>
+
+      <!-- Contact -->
+      <section class="row card" data-page="contact" style="display:none">
+        <div style="grid-column:1/-1">
+          <h2>Contact Us</h2>
+          <form id="contact-form" class="contact" novalidate>
+            <input id="name" name="name" placeholder="Your name" required>
+            <div id="name-error" class="error" aria-live="polite"></div>
+
+            <input id="email" name="email" placeholder="Your email" type="email" required>
+            <div id="email-error" class="error" aria-live="polite"></div>
+
+            <select id="type" name="type" required>
+              <option value="">Choose message type</option>
+              <option value="General">General</option>
+              <option value="Support">Support</option>
+              <option value="Feedback">Feedback</option>
+            </select>
+            <div id="type-error" class="error" aria-live="polite"></div>
+
+            <textarea id="message" name="message" rows="4" placeholder="Message (min 10 chars)" required></textarea>
+            <div id="message-error" class="error" aria-live="polite"></div>
+
+            <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+              <button id="submit-button" class="btn" type="submit">Send Message</button>
+              <div id="form-submission-status" style="display:none;padding:8px;border-radius:8px"></div>
+            </div>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <footer>Interactive Sitemap — Demo • Open console (F12) for logs</footer>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  'use strict';
+
+  // Data
+  const sitemapData = {
+    title: "Root",
+    description: "Top-level sections",
+    children: [
+      { title: "Electronics", description: "Phones, laptops, audio", children: [
+          { title: "Phones", description: "Smartphones & accessories", value: 150 },
+          { title: "Laptops", description: "Notebooks & gaming laptops", value: 120 },
+          { title: "Audio", description: "Headphones & speakers", value: 90 }
+      ]},
+      { title: "Home & Living", description: "Furniture and decor", children: [
+          { title: "Furniture", description: "Sofas, beds, tables", value: 80 },
+          { title: "Kitchen", description: "Appliances & cookware", value: 60 }
+      ]},
+      { title: "Fashion", description: "Clothing & accessories", children: [
+          { title: "Men", description: "Menswear", value: 110 },
+          { title: "Women", description: "Womenswear", value: 130 }
+      ]}
+    ]
+  };
+
+  const productsSeed = [
+    { name: "A-Bass Earbuds", price: "R899", category: "Audio", image: "https://images.unsplash.com/photo-1518444028060-8994b6c0546f?w=800&q=60" },
+    { name: "FitPro Health Band", price: "R1599", category: "Wearables", image: "https://images.unsplash.com/photo-1519744792095-2f2205e87b6f?w=800&q=60" },
+    { name: "Aurora Beast 15\"", price: "R19999", category: "Laptops", image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=1200&q=60" },
+    { name: "Barista Pro", price: "R2450", category: "Home", image: "https://images.unsplash.com/photo-1541167760496-1628856ab772?w=800&q=60" },
+    { name: "Midnight Code Novel", price: "R185", category: "Books", image: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=800&q=60" }
+  ];
+
+  // Elements
+  const navItems = Array.from(document.querySelectorAll('.nav-item'));
+  const sections = Array.from(document.querySelectorAll('[data-page]'));
+  const toastEl = document.getElementById('toast');
+
+  // Navigation
+  function showPage(name){
+    sections.forEach(s=>{
+      s.style.display = s.dataset.page === name ? '' : 'none';
+    });
+    navItems.forEach(n => n.classList.toggle('active', n.dataset.page === name));
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  navItems.forEach(item=>{
+    item.addEventListener('click', ()=> showPage(item.dataset.page));
+  });
+
+  document.getElementById('open-contact').addEventListener('click', ()=> showPage('contact'));
+  document.getElementById('load-featured').addEventListener('click', ()=>{
+    showToast('Featured items loaded');
+  });
+
+  // Toast
+  function showToast(msg, ms=1800){
+    toastEl.textContent = msg;
+    toastEl.style.display = 'block';
+    toastEl.style.opacity = '1';
+    setTimeout(()=> {
+      toastEl.style.transition = 'opacity 300ms';
+      toastEl.style.opacity = '0';
+      setTimeout(()=> toastEl.style.display = 'none', 320);
+    }, ms);
+  }
+
+  // Chart (safe)
+  const chartCanvas = document.getElementById('sitemapChart');
+  let sitemapChart = null;
+  function renderChart(node){
+    if (!chartCanvas || typeof Chart === 'undefined') return;
+    const labels = (node.children||[]).map(c=>c.title);
+    const values = (node.children||[]).map(c=>c.value || (c.children ? c.children.length : 1));
+    const colors = ['#6B8EFF','#6BE2A8','#FFD36B','#FF6B6B','#9B8BFF'].slice(0, labels.length);
+
+    const cfg = {
+      type: 'bar',
+      data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 8 }] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } },
+        onClick(evt, elems){
+          if (!elems || elems.length===0) return;
+          const idx = elems[0].index;
+          const item = (node.children||[])[idx];
+          if (!item) return;
+          // drill down if children
+          if (item.children && item.children.length){
+            renderChart(item);
+            setInfo(item.title, item.description);
+            showToast('Drilled into: ' + item.title);
+          } else {
+            setInfo(item.title, item.description);
+            highlightBar(idx);
+          }
+        }
+      }
+    };
+    if (sitemapChart) sitemapChart.destroy();
+    sitemapChart = new Chart(chartCanvas.getContext('2d'), cfg);
+  }
+
+  function highlightBar(i){
+    if (!sitemapChart) return;
+    const ds = sitemapChart.data.datasets[0];
+    const base = ['#6B8EFF','#6BE2A8','#FFD36B','#FF6B6B','#9B8BFF'];
+    ds.backgroundColor = ds.data.map((_,idx)=> idx===i ? '#FFB86L' : base[idx % base.length]);
+    sitemapChart.update('none');
+  }
+
+  function setInfo(title, content){
+    document.getElementById('infoTitle').textContent = title || '';
+    document.getElementById('infoContent').textContent = content || '';
+  }
+
+  // Navigation tree
+  function renderNavTree(){
+    const tree = document.getElementById('nav-tree');
+    tree.innerHTML = '';
+    function makeNode(node){
+      const el = document.createElement('div');
+      el.style.padding = '10px';
+      el.style.borderRadius = '8px';
+      el.style.border = '1px solid rgba(15,23,42,0.04)';
+      el.style.background = '#fff';
+      el.style.cursor = 'pointer';
+      el.textContent = node.title;
+      el.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        setInfo(node.title, node.description);
+        if (node.children && node.children.length){
+          if (el._expanded){
+            el._expanded = false;
+            el.querySelectorAll(':scope > .child-wrap').forEach(c => c.remove());
+          } else {
+            el._expanded = true;
+            const wrap = document.createElement('div');
+            wrap.className = 'child-wrap';
+            wrap.style.marginTop = '8px';
+            wrap.style.marginLeft = '12px';
+            node.children.forEach(cn => wrap.appendChild(makeNode(cn)));
+            el.appendChild(wrap);
+          }
+        }
+      });
+      return el;
+    }
+    (sitemapData.children||[]).forEach(n=> tree.appendChild(makeNode(n)));
+  }
+
+  // replace renderProducts to include action buttons
+  function renderProducts(list, containerId){
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+    list.forEach(function(p){
+      const el = document.createElement('div');
+      el.className = 'product';
+      el.innerHTML = ''
+        + '<div class="p-img"><img loading="lazy" src="'+(p.image||'')+'" alt="'+(p.name||'')+'"></div>'
+        + '<div class="p-title">'+(p.name||'')+'</div>'
+        + '<div class="p-meta">'+(p.category||'')+' • <strong>'+(p.price||'')+'</strong></div>'
+        + '<div class="product-actions">'
+        +   '<button class="small-btn primary" data-action="add-to-cart" data-name="'+encodeURIComponent(p.name||'')+'">Add to cart</button>'
+        +   '<button class="small-btn" data-action="details" data-name="'+encodeURIComponent(p.name||'')+'">Details</button>'
+        + '</div>';
+      container.appendChild(el);
+    });
+  }
+
+  // cart state
+  let cartCount = 0;
+  const cartCountEl = document.getElementById('cart-count');
+
+  // handle action buttons (event delegation)
+  document.addEventListener('click', function(e){
+    const btn = e.target.closest && e.target.closest('button[data-action]');
+    if (!btn) return;
+
+    const action = btn.getAttribute('data-action');
+    const name = decodeURIComponent(btn.getAttribute('data-name') || '');
+    if (action === 'add-to-cart') {
+      cartCount += 1;
+      if (cartCountEl) cartCountEl.textContent = String(cartCount);
+      showToast((name || 'Item') + ' added to cart');
+      // optional visual feedback
+      btn.disabled = true;
+      btn.textContent = 'Added';
+      setTimeout(()=> { btn.disabled = false; btn.textContent = 'Add to cart'; }, 1200);
+    } else if (action === 'details') {
+      // show details in info panel
+      setInfo(name, 'Details for: ' + (name || 'item'));
+      showToast('Showing details: ' + (name || 'item'));
+      // if you want to expand nav tree to that item, implement here
+    }
+
+    // stop further handling to avoid duplicate "card click" actions
+    e.stopPropagation();
+  }, { passive: true });
+
+  // product card click shows info (ignore clicks originating from action buttons)
+  // replaced existing handler to avoid responding when buttons were clicked
+  document.addEventListener('click', function(e){
+    if (e.target.closest && e.target.closest('button[data-action]')) return;
+    const card = e.target.closest && e.target.closest('.product');
+    if (!card) return;
+    const title = card.querySelector('.p-title')?.textContent || '';
+    const meta = card.querySelector('.p-meta')?.textContent || '';
+    setInfo(title, meta);
+    showToast(title + ' opened');
+  });
+
+  // Navigation actions update active class
+  document.getElementById('navList').addEventListener('click', function(e){
+    const item = e.target.closest('.nav-item');
+    if (!item) return;
+    showPage(item.dataset.page);
+  });
+
+  // Search debounce
+  function debounce(fn, wait=260){ let t; return function(){ const args=arguments; clearTimeout(t); t=setTimeout(()=>fn.apply(null,args), wait); }; }
+
+  // Contact form (validation + mock submit)
+  function setupContactForm(){
+    const form = document.getElementById('contact-form');
+    if (!form) return;
+    const submit = document.getElementById('submit-button');
+    const status = document.getElementById('form-submission-status');
+
+    function getErr(id){ return document.getElementById(id+'-error'); }
+
+    function clearErrs(){
+      ['name','email','type','message'].forEach(id=>{ const e=getErr(id); if(e) e.textContent=''; });
+      if (status) { status.style.display='none'; status.textContent=''; }
+    }
+
+    function validate(){
+      clearErrs();
+      let ok=true;
+      const name = (document.getElementById('name').value||'').trim();
+      const email = (document.getElementById('email').value||'').trim();
+      const type = (document.getElementById('type').value||'').trim();
+      const msg = (document.getElementById('message').value||'').trim();
+      if (name.length<2){ getErr('name').textContent='Enter your name (min 2 chars)'; ok=false; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ getErr('email').textContent='Enter valid email'; ok=false; }
+      if (!type){ getErr('type').textContent='Select message type'; ok=false; }
+      if (msg.length<10){ getErr('message').textContent='Message needs at least 10 chars'; ok=false; }
+      return ok;
+    }
+
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      if (!validate()){ showToast('Please fix the errors'); return; }
+      submit.disabled = true; submit.textContent = 'Sending...';
+      setTimeout(()=> {
+        if (status){ status.style.display='block'; status.style.background='#ecfdf5'; status.style.color='#065f46'; status.textContent='Message sent. Thank you.'; }
+        form.reset();
+        submit.disabled=false; submit.textContent='Send Message';
+        showToast('Message sent');
+      }, 900);
+    });
+  }
+
+  // Wire up UI
+  document.addEventListener('DOMContentLoaded', function(){
+    // initial page
+    showPage('home');
+
+    // chart and nav
+    renderChart(sitemapData);
+    renderNavTree();
+
+    // initial products
+    renderProducts(productsSeed, 'product-list');
+
+    // product search and top search use same behavior
+    const prodSearch = document.getElementById('product-search');
+    const topSearch = document.getElementById('top-search');
+    function filter(q){
+      q=(q||'').toLowerCase().trim();
+      ['product-list','dynamic-products'].forEach(id=>{
+        const c=document.getElementById(id);
+        if(!c) return;
+        Array.from(c.children).forEach(card=>{
+          const t = (card.querySelector('.p-title')?.textContent||'').toLowerCase();
+          card.style.display = t.includes(q) ? '' : 'none';
+        });
+      });
+    }
+    if(prodSearch) prodSearch.addEventListener('input', debounce(e=>filter(e.target.value)));
+    if(topSearch) topSearch.addEventListener('input', debounce(e=>filter(e.target.value)));
+
+    // load more
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    loadMoreBtn && loadMoreBtn.addEventListener('click', function(){
+      const extra = [
+        { name: "Pro-Gamer Mousepad", price: "R350", category: "Gaming", image: "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=800&q=60" },
+        { name: "Home Comfort Sofa", price: "R5999", category: "Furniture", image: "https://images.unsplash.com/photo-1493666438817-866a91353ca9?w=1200&q=60" },
+        { name: "Organic Dog Food", price: "R650", category: "Pets", image: "https://images.unsplash.com/photo-1558944351-d5f7f39a6d3c?w=800&q=60" }
+      ];
+      renderProducts(extra, 'dynamic-products');
+      document.getElementById('dynamic-products').style.display='grid';
+      loadMoreBtn.disabled=true;
+      showToast('Extra products loaded');
+    });
+
+    // contact form
+    setupContactForm();
+
+    // small accessibility: keyboard nav for nav-list
+    document.getElementById('navList').addEventListener('keydown', function(e){
+      if (e.key === 'Enter' && e.target.classList.contains('nav-item')) {
+        e.target.click();
+      }
+    });
+
+    // responsive chart redraw
+    window.addEventListener('resize', function(){ if (sitemapChart && sitemapChart.resize) sitemapChart.resize(); });
+  });
+
+})();
+</script>
+</body>
+</html>
